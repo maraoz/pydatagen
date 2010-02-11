@@ -5,31 +5,29 @@
 # generic genetic algorithm excecuting class
 
 
-
-POPULATION_SIZE = 100
-MAX_GENERATIONS = 1000000
-
-PARENTS_PER_GENERATION = 50
-
-
-
 class GeneticAlgorithm(object):
     
-    def __init__(self, fitness_function, random_chromosome_function
-                 mating_funcion, mutation_function):
+    def __init__(self, fitness_function, random_chromosome_function,
+                 mating_function, mutation_function, max_generations = 2000,
+                 population_size = 100):
         
         self.fitness = fitness_function
         self.random_chromosome = random_chromosome_function
         self.combine = mating_function
         self.mutate = mutation_function
+
+        self.max_generations = max_generations
+        self.population_size = population_size
         
         self.population = []
         self.generation = 0
         
     def get_best_individual(self):
-        return max(self.population, key=self.fitness)
+        self.evaluate_fitness()
+        return max(self.population, key=lambda c: c['fitness'])
+        
 
-    def calculate_fitness(self):
+    def evaluate_fitness(self):
         for individual in self.population:
             chrm = individual['genes']
             individual['fitness'] = self.fitness(chrm)
@@ -38,57 +36,73 @@ class GeneticAlgorithm(object):
         self.generation += 1
 
     def initialize_population(self):
-        for i in xrange(POPULATION_SIZE):
+        for i in xrange(self.population_size):
             chromosome = self.random_chromosome()
             individual = {'genes' : chromosome, 'fitness' : 0}
             self.population.append(individual)
-        
-    def get_parents(self):
+
+    def get_offspring(self):
         raise NotImplementedError
         
-    def get_offspring(self, parents):
+    def introduce(self, offspring):
         raise NotImplementedError
-        
-    def get_selected(self, parents, offspring):
-        raise NotImplementedError
-    
+
+    def mutation(self, offspring):
+        new_o = []
+        for child in offspring:
+            new_o.append({'genes' : self.mutate(child['genes']),
+                          'fitness' : 0})
+        return new_o
     
     def run(self):
         
         self.initialize_population()    
-        while (self.generation < MAX_GENERATIONS):
-            self.calculate_fitness()
+        while (self.generation < self.max_generations):
+            self.evaluate_fitness()
             offspring = self.get_offspring()
-            self.population = self.getSelected(parents,offspring)
-            self.nextGeneration()
+            offspring = self.mutation(offspring)
+            self.introduce(offspring)
+            self.next_generation()
         
-        best = self.getBestIndividual()
+        best = self.get_best_individual()
         
-        return best
+        return best['genes']
             
 
 class SimpleGeneticAlgorithm(GeneticAlgorithm):
+    """In this simple version, the offspring we generate are
+        exact copies of the fittest individuals in the population.
+        Then mutation will be applied, so this algorithm simulates
+        asexual reproduction"""
+
+    
+
+    def __init__(self, *args, **kwargs):
+
+        elite = 0.4
+        GeneticAlgorithm.__init__(self, *args, **kwargs)
 
 
-    def get_parents(self):
+
+
+        # we calculate how many offspring to generate based on the
+        # ammount of individuals that will survive to next generation
+        self.elite_ammount = int(elite * self.population_size)
+        self.offspring_ammount = self.population_size - self.elite_ammount
+
+
+    def get_offspring(self):
+        cmp_function = lambda c, d: cmp(c['fitness'],d['fitness'])
+        self.population.sort(cmp=cmp_function)
+        print "best in gen %d is %s with fitness %d" % \
+              (self.generation, self.population[0]['genes'],
+               self.population[0]['fitness'])
+        return self.population[:self.offspring_ammount]
+
         
-        if len(self.population) != POPULATION_SIZE:
-            raise ValueError, "Population size corrupt, must be %d and is %d" % (POPULATION_SIZE, len(self.population))
-     
-        evaluatedPopulation = [(self.fitness(ind), ind) for ind in self.population]
-        evaluatedPopulation.sort()
-
-        return [parent for (fitness, parent) in evaluatedPopulation[:PARENTS_PER_GENERATION]]
-
-    def mate(self, parents):
-        return [self.mutate(individual) for individual in parents]
-    
-    def get_offspring(self, parents):
-        children = self.mate(parents)
-        return children
-    
-    def get_selected(self, parents, offspring):
-        return parents+offspring
+    def introduce(self, offspring):
+        assert len(self.population) == self.population_size
+        self.population = self.population[:self.elite_ammount] + offspring
         
 
 def main():
