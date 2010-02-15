@@ -1,4 +1,5 @@
 import unittest
+import datagen
 from datagen import *
 
 class AlgorithmTest(unittest.TestCase):
@@ -7,7 +8,8 @@ class AlgorithmTest(unittest.TestCase):
         """Given a condition and an expected output, asserts the
             datagen module returns that output"""
         data = datagen.get_data(condition)
-        self.assertEqual(data, output)
+        for o in output:
+            self.assertEqual(data[o], output[o])
         
 
 
@@ -20,7 +22,7 @@ class AlgorithmTest(unittest.TestCase):
         
     def test_random_identity(self):
         from random import randint
-        n = randint(1,1000)
+        n = randint(1,100)
         cond = "x is " + str(n)
         self.assert_output(cond, {"x": n})
 
@@ -55,18 +57,18 @@ class AlgorithmTest(unittest.TestCase):
     def test_inequality_chain(self):
         cond = "18 < age < 70"
         age = datagen.get_data(cond).get("age")
-        assertTrue(18 < age < 70)
+        self.assertTrue(18 < age < 70)
         
 
 
         
     def test_meta_boolean_true(self):
-        cond = "(age < 100) is True)"
+        cond = "(age < 100) is True"
         age = datagen.get_data(cond).get("age")
         self.assertTrue((age < 100) is True)
         
     def test_meta_boolean_false(self):
-        cond = "(8 < age) is False)"
+        cond = "(8 < age) is False"
         data = datagen.get_data(cond)
         age = data.get("age")
         self.assertTrue((8 < age) is False)
@@ -78,12 +80,12 @@ class AlgorithmTest(unittest.TestCase):
     def test_inclusion(self):
         cond = "sex in ['M', 'F']"
         sex = datagen.get_data(cond).get("sex")
-        assertTrue(sex in ['M', 'F'])
+        self.assertTrue(sex in ['M', 'F'])
 
     def test_not_inclusion(self):
         cond = "sex not in ['M', 'F']"
         sex = datagen.get_data(cond).get("sex")
-        assertTrue(sex not in ['M', 'F'])
+        self.assertTrue(sex not in ['M', 'F'])
 
 
 
@@ -92,12 +94,12 @@ class AlgorithmTest(unittest.TestCase):
     def test_length(self):
         cond = "8 <= length(password) <= 20"
         pwd = datagen.get_data(cond).get("password")
-        self.assertTrue(8 <= length(password) <= 20)
+        self.assertTrue(8 <= length(pwd) <= 20)
 
     def test_range(self):
         cond = "length(password) not in range(20,100)"
         pwd = datagen.get_data(cond).get("password")
-        self.assertTrue(length(password) not in range(20,100))
+        self.assertTrue(length(pwd) not in range(20,100))
 
 
 
@@ -202,7 +204,10 @@ class AlgorithmTest(unittest.TestCase):
                 ))
 
     def test_language_addon_contains_digits(self):
-        cond = "password contains 5 digits and password contains 10 characters"
+        cond = [
+            "password contains 5 digits",
+            "password contains 10 characters"
+            ]
         password = datagen.get_data(cond).get("password")
         self.assertTrue(datagen.contains(
                     container = password,
@@ -231,14 +236,14 @@ class AlgorithmTest(unittest.TestCase):
                     containee = numbers
                 ))
         
-    def test_language_addon_contains_digits(self):
-        cond = "password contains 5 ['$','%','&']"
+    def test_language_addon_contains_special(self):
+        cond = "password contains 5 ['a','b','c','d','e','f','g','G']"
         password = datagen.get_data(cond).get("password")
         self.assertTrue(datagen.contains(
                     container = password,
                     lower = 5,
                     upper = None,
-                    containee = ['$','%','&']
+                    containee = ['a','b','c','d','e','f','g','G']
                 ))
 
     def test_language_addon_contains_range(self):
@@ -251,16 +256,11 @@ class AlgorithmTest(unittest.TestCase):
                     containee = letters
                 ))
 
-    def test_language_addon_contains_spaces(self):
-        cond = "password contains 2 spaces"
-        password = datagen.get_data(cond).get("password")
-        self.assertTrue(datagen.contains(
-                    container = password,
-                    lower = 5,
-                    upper = None,
-                    containee = spaces
-                ))
-    
+
+
+
+
+  
 
 
 
@@ -288,8 +288,8 @@ class AlgorithmTest(unittest.TestCase):
         nonflat_cond = ["x > 10"]
 
         self.assertEquals(
-                datagen.get_data(flat_cond),
-                datagen.get_data(nonflat_cond)
+                datagen.get_data(flat_cond).get('x') > 10,
+                datagen.get_data(nonflat_cond).get('x') > 10
             )
 
 
@@ -299,11 +299,11 @@ class AlgorithmTest(unittest.TestCase):
         conds = [
             "6 <= length(password) <= 12",
             "password contains 1 letter",
-            "password contains 1 number or password contains 1 symbol",
+            "password contains 1 number+symbol",
             "password does not repeat"
             ]
 
-        p = datagen.get_data(cond).get("password")
+        p = datagen.get_data(conds).get("password")
 
         self.assertTrue(6 <= length(p) <= 12)
         self.assertTrue(datagen.contains(
@@ -336,5 +336,7 @@ class AlgorithmTest(unittest.TestCase):
                 flag = True
         self.assertTrue(flag is False)
         
+
+
 
 

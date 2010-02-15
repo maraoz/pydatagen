@@ -5,9 +5,10 @@
 # generic genetic algorithm excecuting class
 
 
-from random import randint, random
+from random import randint, random, choice
 
 class GeneticAlgorithm(object):
+    """ Generic class for genetic algorithm """
     
     def __init__(self, fitness_function, random_chromosome_function,
                  mating_function, mutation_function, max_generations = 2000,
@@ -32,9 +33,10 @@ class GeneticAlgorithm(object):
     def evaluate_fitness(self):
         for individual in self.population:
             chrm = individual['genes']
-            individual['fitness'] = self.fitness(chrm)
+            individual['fitness'] = self.fitness(chrm) or 0.1
+            # if 0 set fitness to a small number
     def sort_by_fitness(self):
-        cmp_function = lambda c, d: cmp(c['fitness'],d['fitness'])
+        cmp_function = lambda c, d: cmp(d['fitness'],c['fitness'])
         self.population.sort(cmp=cmp_function)
         
     def next_generation(self):
@@ -46,29 +48,33 @@ class GeneticAlgorithm(object):
             individual = {'genes' : chromosome, 'fitness' : 0}
             self.population.append(individual)
 
-    def get_offspring(self):
-        raise NotImplementedError
-        
-    def introduce(self, offspring):
-        raise NotImplementedError
-
     def mutation(self, offspring):
         new_o = []
         for child in offspring:
             new_o.append({'genes' : self.mutate(child['genes']),
                           'fitness' : 0})
         return new_o
-    
+
+    def get_offspring(self):
+        raise NotImplementedError
+        
+    def introduce(self, offspring):
+        raise NotImplementedError
+
+    def population_stable(self):
+        raise NotImplementedError
+
     def run(self):
         
         self.initialize_population()    
-        while (self.generation < self.max_generations):
+        while not self.population_stable() and \
+              self.generation < self.max_generations:
             self.evaluate_fitness()
             offspring = self.get_offspring()
             offspring = self.mutation(offspring)
             self.introduce(offspring)
             self.next_generation()
-        
+
         best = self.get_best_individual()
         
         return best['genes']
@@ -80,8 +86,10 @@ class ElitistGeneticAlgorithm(GeneticAlgorithm):
         is preserved alive and intact to the next generation. This are
         the best individuals based on fitness"""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, max_fitness, *args, **kwargs):
 
+        self.max_fitness = max_fitness
+    
         elite = 0.4
         GeneticAlgorithm.__init__(self, *args, **kwargs)
 
@@ -90,15 +98,18 @@ class ElitistGeneticAlgorithm(GeneticAlgorithm):
         self.elite_ammount = int(elite * self.population_size)
         self.offspring_ammount = self.population_size - self.elite_ammount
 
+    def population_stable(self):
+        return self.population[0]['fitness'] == self.max_fitness
+
     def introduce(self, offspring):
         assert len(self.population) == self.population_size
         self.population = self.population[:self.elite_ammount] + offspring
 
-    def print_best(ordered = False):
-        if not ordered:
-            best = min(self.population, key = lambda i: i['fitness']
+    def print_best(self, is_ordered):
+        if not is_ordered:
+            best = max(self.population, key = lambda i: i['fitness'])
         else:
-            best = self.population[0]
+            best = self.population[-1]
         print "best in gen %d is %s with fitness %d" % \
               (self.generation, best['genes'],best['fitness'])
 
@@ -113,7 +124,8 @@ class AsexualGeneticAlgorithm(ElitistGeneticAlgorithm):
 
     def get_offspring(self):
         self.sort_by_fitness()
-        self.print_best(ordered=True)
+        # optional
+        self.print_best(is_ordered = True)
         return self.population[:self.offspring_ammount]
 
 class CrossoverGeneticAlgorithm(ElitistGeneticAlgorithm):
@@ -123,6 +135,9 @@ class CrossoverGeneticAlgorithm(ElitistGeneticAlgorithm):
         fitness."""
 
     def get_random_parent(self, total):
+        """ total: total population fitness """
+        if total == 0:
+            return choice(self.population)
         r = random() * total
         s = 0
         for ind in self.population:
@@ -138,13 +153,14 @@ class CrossoverGeneticAlgorithm(ElitistGeneticAlgorithm):
         pop_fitness = sum(i['fitness'] for i in self.population)
         offspring = []
         for i in xrange(self.offspring_ammount):
-            father = self.get_random_parent()
-            mother = self.get_random_parent()
+            father = self.get_random_parent(pop_fitness)
+            mother = self.get_random_parent(pop_fitness)
 
-            offspring.append(self.combine(father,mother))
+            combined_genes = self.combine(father['genes'],mother['genes'])
+            offspring.append({'genes' : combined_genes, 'fitness' : 0})
 
         # optional
-        self.print_best(ordered=True)
+        self.print_best(is_ordered = True)
         return offspring
         
 
