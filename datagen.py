@@ -131,11 +131,11 @@ def get_types(conds):
             if ttype == VARIABLE and not is_keyword(varname):
                 for hint in type_hints:
                     if hint in cond:
-                        print "I guess",varname,"is a string."
+                        print "Our guess is that",varname,"is a string."
                         d[varname] = str
                         break
                 else:
-                    print "I guess",varname,"is an integer."
+                    print "Our guess is that",varname,"is an integer."
                     d[varname] = int
 
     return d
@@ -326,10 +326,10 @@ def get_data(conds):
     best, best_fitness = ga.run()
     time = 0
     fail_messages = [
-        "Couldn't find a solution, let me try again...",
+        "We couldn't find a solution, let us try again...",
         "Yikes! This one seems a hard one. Let's try again.",
-        "Hmm... This is strange, I still can't find a solution...",
-        "OK, this is my last chance, I swear! I'll try something new."
+        "Hmm... This is strange, we still can't find a solution...",
+        "OK, this is our last chance, I swear! We'll try something new."
         ]
     while(best_fitness != len(conds)**2):
         print fail_messages[time]
@@ -346,6 +346,7 @@ def get_data(conds):
         print "I'm afraid there might be no solution to this constraints"
         print "Anyway, this is the best that I could manage to get."
         return best
+    print "Yippie! We found data that satisfies all the constraints!"
     return best
 
 
