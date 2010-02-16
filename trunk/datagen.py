@@ -2,6 +2,11 @@
 
 import random
 import re
+from keyword import iskeyword
+import string
+
+from tokenize import generate_tokens
+from StringIO import StringIO
 
 from ga import CrossoverGeneticAlgorithm
 
@@ -11,22 +16,49 @@ lowercase = lowercases = 'abcdefghijklmnopqrstuvwxyz'
 uppercase = uppercases = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 letter = letters = lowercase + uppercase
 digit = number = digits = numbers = '0123456789'
-symbol = specialcharacter = symbols = specialcharacters = \
+symbol = special = specials = specialcharacter = symbols = specialcharacters = \
          """~!@#$%^&*()_+|}{":?<>`-=[]\;',./"""
 space = spaces = " "
-characters = symbols+digits+letters
+character = characters = symbols+digits+letters
+true = True
+false = False
 
 
 
-def contains(container,lower = None, upper = None, containee = characters):
-    lower = lower or -1
-    upper = upper or 10**100
+VARIABLE = 1
+add_kw = ['None', "True", "False", 'true', 'false', "contains", "length",
+          "lowercase", "lowercases", "uppercase", "uppercases", 'letter',
+          'letters', 'lowercase', 'uppercase', 'digit', 'number', 'digits',
+          'numbers', 'symbol', 'specialcharacter', 'symbols',
+          'specialcharacters', 'space', 'spaces', 'character',
+          'characters', 'range', 'does_not_repeat', 'no', 'special',
+          'specials']
+
+def is_keyword(varname):
+    return iskeyword(varname) or varname in add_kw
+    
+
+def contains(container,lower = None, upper = None, containee = characters, v=False):
+
+    if lower is None:
+        lower = -1
+    if upper is None:
+        upper = 10**100
+
 
     count = 0
     for c in container:
+        if v:
+            print ord(c)
         if c in containee:
+            if v:
+                print c, "in", containee
+
             count += 1
-    return lower < count < upper
+            if count > upper:
+                return False
+    #print lower ,"<=", count, "<=" ,upper
+    return lower <= count 
 
 def does_not_repeat(something):
     for i in xrange(len(something)-1):
@@ -58,9 +90,17 @@ def preprocess(conds):
             fall = r.findall(cond_sfx)
             if len(fall) == 0:
                 nr = re.compile(" [0-9]+ ")
-                lwr = nr.findall(cond_sfx)[0]
-                upr = None
-                containee = cond_sfx.replace(lwr,"")
+                fall2 = nr.findall(cond_sfx)
+                if len(fall2) == 1:
+                    lwr = fall2[0]
+                    upr = None
+                    containee = cond_sfx.replace(lwr,"")
+                elif 'no' in cond_sfx:
+                    lwr = 0
+                    upr = 0
+                    containee = cond_sfx.replace("no","")
+                    
+                    
             elif len(fall) == 1:
                 reinsh = fall[0]
                 nr = re.compile("[0-9]+")
@@ -73,16 +113,40 @@ def preprocess(conds):
             synth_cond = "contains(%s,%s,%s,%s)" % (sp[0], lwr, upr, containee)
         new_conds.append(synth_cond)
 
-    
     return new_conds
 
+
+type_hints = ['length','contains',"'","repeat", "lowercase","uppercase",
+              "letter", "digit", "number", "symbol", "specialcharacter",
+              "space", "character"]
+
+
+
 def get_types(conds):
-    return {'x': int, 'sex': str, 'y': int, 'password': str, "age": int}
+
+    d = {}
+
+    for cond in conds:
+        for ttype, varname, _, _, _ in generate_tokens(StringIO(cond).readline):
+            if ttype == VARIABLE and not is_keyword(varname):
+                for hint in type_hints:
+                    if hint in cond:
+                        print "I guess",varname,"is a string."
+                        d[varname] = str
+                        break
+                else:
+                    print "I guess",varname,"is an integer."
+                    d[varname] = int
+
+    return d
+                    
+
 
 def get_random_string(min_length=3,max_length=10, chrs=[]):
     rlength = random.randint(min_length, max_length)
 
-    addon = ''.join(str(list(chrs))[1:-1].replace("'","").replace(",","").replace(" ","").replace('"',""))*100
+    addon = ''.join(str(list(chrs))[1:-1].replace("'","").\
+                    replace(",","").replace(" ","").replace('"',""))*100
 
 
     res = ''.join(random.sample(
@@ -109,6 +173,7 @@ def str_guess(conds):
     final = []
     chrs = set()
     r = re.compile("""\'[a-zA-z]+\'""")
+    r2 = re.compile("""[0-9]+""")
     for cond in conds:
         faaa = r.findall(cond)
         final += [len(x) for x in faaa ]
@@ -156,7 +221,16 @@ def get_data(conds):
                 raise TypeError, "chromosome shouldn't contain \
                     element of type %s" % tyype
         return c
-        
+
+
+    def only_ascii(chromo):
+        for k,v in chromo.items():
+            if typedict[k] == str:
+                for c in v:
+                    if c not in string.printable:
+                        return False
+        return True
+    
     def fitness(chromosome):
         total = 0
         env = chromosome.copy()
@@ -164,16 +238,17 @@ def get_data(conds):
             env[k] = v
         for k,v in locals().items():
             env[k] = v
-        #env['contains'] = contains
+
         for cond in conds:
             try:
                 result = eval(cond, env)
             except IndexError:
-                print "Skipping index error in fitness evaluation"
                 result = False
                 
             if result is True:
                 total += 1
+        if not only_ascii(chromosome):
+            return total/2
         return total**2
 
 
@@ -245,24 +320,54 @@ def get_data(conds):
         return chromosome
 
     ga = CrossoverGeneticAlgorithm(len(conds)**2, fitness,
-            random_chromosome, mate, mutate, max_generations = 5,
+            random_chromosome, mate, mutate, max_generations = 50,
             population_size = 250)
 
-    best = ga.run()
+    best, best_fitness = ga.run()
+    time = 0
+    fail_messages = [
+        "Couldn't find a solution, let me try again...",
+        "Yikes! This one seems a hard one. Let's try again.",
+        "Hmm... This is strange, I still can't find a solution...",
+        "OK, this is my last chance, I swear! I'll try something new."
+        ]
+    while(best_fitness != len(conds)**2):
+        print fail_messages[time]
+        if time == 3:
+            ga = CrossoverGeneticAlgorithm(len(conds)**2, fitness,
+                    random_chromosome, mate, mutate, max_generations = 100,
+                    population_size = 250)
+        best, best_fitness = ga.run()
+        time += 1
+        if time == 4:
+            break
+
+    if time == 4 and best_fitness != len(conds)**2:
+        print "I'm afraid there might be no solution to this constraints"
+        print "Anyway, this is the best that I could manage to get."
+        return best
     return best
 
 
 
 
+
 if __name__ == "__main__":
-    for x in preprocess([
-        "password contains 1 letter",
-        "password contains 1 number+symbol",
-        "lala_popo contains 1 to 10 symbols",
-        "loooooot contains 100000 to 20 ['M','x']"
-        ]):
-        print x
-        print contains("llala",1,None,letter)
+    conds = [
+
+            "name contains 4 to 18 letters",
+            "name contains no special+number",
+            "name[0] in uppercase",
+
+            "password contains 1 number",
+            "password does not repeat",
+            "password contains 10 to 30 characters",
+            ]
+
+    data = get_data(conds)
+    print "Values generated:"
+    for k,v in data.items():
+        print k+":", v
     
 
 

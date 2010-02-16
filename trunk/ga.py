@@ -22,8 +22,6 @@ class GeneticAlgorithm(object):
         self.max_generations = max_generations
         self.population_size = population_size
         
-        self.population = []
-        self.generation = 0
         
     def get_best_individual(self):
         self.evaluate_fitness()
@@ -43,6 +41,8 @@ class GeneticAlgorithm(object):
         self.generation += 1
 
     def initialize_population(self):
+        self.population = []
+        self.generation = 0
         for i in xrange(self.population_size):
             chromosome = self.random_chromosome()
             individual = {'genes' : chromosome, 'fitness' : 0}
@@ -77,7 +77,7 @@ class GeneticAlgorithm(object):
 
         best = self.get_best_individual()
         
-        return best['genes']
+        return best['genes'], best['fitness']
 
 
 class ElitistGeneticAlgorithm(GeneticAlgorithm):
@@ -125,7 +125,7 @@ class AsexualGeneticAlgorithm(ElitistGeneticAlgorithm):
     def get_offspring(self):
         self.sort_by_fitness()
         # optional
-        self.print_best(is_ordered = True)
+        # self.print_best(is_ordered = True)
         return self.population[:self.offspring_ammount]
 
 class CrossoverGeneticAlgorithm(ElitistGeneticAlgorithm):
@@ -160,7 +160,7 @@ class CrossoverGeneticAlgorithm(ElitistGeneticAlgorithm):
             offspring.append({'genes' : combined_genes, 'fitness' : 0})
 
         # optional
-        self.print_best(is_ordered = True)
+        #self.print_best(is_ordered = True)
         return offspring
         
 
