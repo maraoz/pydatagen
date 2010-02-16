@@ -91,6 +91,7 @@ class AlgorithmTest(unittest.TestCase):
 
 
 
+
     def test_length(self):
         cond = "8 <= length(password) <= 20"
         pwd = datagen.get_data(cond).get("password")
@@ -105,9 +106,9 @@ class AlgorithmTest(unittest.TestCase):
 
 
     def test_and(self):
-        cond = "x < 100 and x*x is 36"
+        cond = "x < 10 and x*x > 36"
         x = datagen.get_data(cond).get("x")
-        self.assertTrue(x < 100 and x*x is 36)
+        self.assertTrue(x < 10 and x*x > 36)
 
     def test_or(self):
         cond = "x is 9 or x is 11"
